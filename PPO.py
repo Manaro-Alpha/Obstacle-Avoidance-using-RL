@@ -28,7 +28,7 @@ class Agent(nn.Module):
             nn.Tanh(),
             nn.Linear(64,64),
             nn.Tanh(),
-            nn.Linear(64,1)
+            nn.Linear(64,envs.single_action_space.shape())
         )
 
         self.actor_logstd = nn.Parameter(torch.zeros(1,np.prod(envs.single_action_space.shape)))

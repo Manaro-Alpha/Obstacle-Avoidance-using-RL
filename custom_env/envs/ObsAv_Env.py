@@ -3,14 +3,18 @@ from gym import spaces
 import pygame
 import numpy as np
 import random
-import utils
 import math
 import time
+import sys
+sys.path.append('/home/mananaro/bangbang_RL/custom_env/envs')
+import utils
 
 scale = 0
-MAX_TIME = 100
+MAX_TIME = 200
 reward = 0
 Eptime = 0
+total_reward = 0
+
 class Env(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
     def __init__(self,render_mode = None, size = 50):
@@ -18,7 +22,10 @@ class Env(gym.Env):
         self.window_size = 768
         self.dt = 0.1
         self.path = []
-        polar_grid = utils.polar_occupancy_grid(0,0,0.1,1)
+        self.done = False
+        # self.total_reward = 10
+        self.ep_length = 0
+        polar_grid = utils.polar_occupancy_grid(0,0,10,15)
         self.observation_space = spaces.Dict(
             {
                 "agent_pos": spaces.Box(-np.inf,np.inf,shape=(2,)),
@@ -26,7 +33,7 @@ class Env(gym.Env):
                 "agent_vel": spaces.Box(-np.inf,np.inf,shape=(1,)),
                 "target_pos": spaces.Box(-np.inf,np.inf, shape=(2,)),
                 "target_angle": spaces.Box(-3.14159,3.14159,(1,)),
-                "target_vel": spaces.Box(-np.inf, np.inf, shape=(2,)),
+                "target_vel": spaces.Box(-np.inf, np.inf, shape=(1,)),
                 "occupancy_grid": spaces.Box(0,1,shape=polar_grid.shape(),dtype=bool)
             }
         )
@@ -47,17 +54,24 @@ class Env(gym.Env):
                 "occupancy_grid": self._occupancy_grid
                 }
     def _get_info(self):
+        global total_reward
         return {
-            "distance": np.linalg.norm(self._agent_location - self._target_location, ord=1)
+            "distance": np.linalg.norm(self._agent_location - self._target_location, ord=1),
+            "final_info": self.done,
+            "episodic_return": total_reward,
+            "ep_l": self.ep_length
         }
     
     def reset(self, seed=None,options=None):
         super().reset(seed=seed)
-
         global Eptime
+        global total_reward
         Eptime = time.time()
         global reward
         reward = 0
+        total_reward = 0
+        self.done = False
+        self.ep_length = 0
         self.path = []
         self._agent_location = self.np_random.uniform(-self.size,self.size,2)
         self.path.append(self._agent_location+384)
@@ -68,9 +82,9 @@ class Env(gym.Env):
             self._target_location = self.np_random.uniform(-self.size,self.size,size=2)
         self._target_velocity = self.np_random.uniform(-3,3,1)
         self._target_angle = self.np_random.uniform(-3.14,3.14,1)
-        self.polar_occupancy_grid = utils.polar_occupancy_grid(self._agent_location[0],self._agent_location[1],0.1,1)
+        self.polar_occupancy_grid = utils.polar_occupancy_grid(self._agent_location[0],self._agent_location[1],10,15)
         self._occupancy_grid = np.zeros(np.prod(self.polar_occupancy_grid.shape()),dtype=bool)
-        self.obstacle_num = 0
+        self.obstacle_num = np.random.randint(0,20)
         self.obstacle_list = []
         for i in range(self.obstacle_num):
             n = random.randint(0,1)
@@ -105,63 +119,11 @@ class Env(gym.Env):
         return observation,info
 
     def step(self,action):
-        # terminated = False
-        # acc = self._action_set[action]
-        # dv = acc*self.dt
-        # self._agent_velocity = self._agent_velocity + dv
-        # dx = self._agent_velocity*self.dt
-        # self._agent_location = self._agent_location + dx
-        
-        # if np.linalg.norm(self._agent_location - self._target_location,ord=1) < 0.1:
-        #     done = True
-        # reward = 0
-        # ## conditions for termination:
-        # # going out of bounds
-        # # colliding with an obstacle
-        # for obs in range(len(self.obstacle_num)):
-        #     if np.linalg.norm(self._agent_location - self._obstacle_location[obs],ord=2) <= self._obstacle_radius[obs]:
-        #         terminated = True
-        # if self._agent_location.any() < 0 or self._agent_location.any() > self.size-1:
-        #     terminated = True 
-        # if terminated:
-        #     reward -= 1
-        # if done:
-        #     reward += 10
-        # reward -= 0.1
-
-        # observation = self._get_obs()
-        # info = self._get_info()
-        # if self.render_mode == "human":
-        #     self._render_frame()
-        
-        # return observation, reward, done, terminated, info
-        # acc = self._action_set[action]
-        # dv = acc*self.dt
-        # self._agent_velocity = self._agent_velocity + dv
-        # dx = self._agent_velocity*self.dt
-        # self._agent_location = self._agent_location + dx
-        # self.path.append(self._agent_location+50)
-        # global reward
-        # done = False
-        # #terminated = False
-        # if np.linalg.norm(self._agent_location - self._target_location,ord=1) < 0.1 and np.linalg.norm(self._agent_velocity - self._target_velocity,ord=1) < 0.1:
-        #     done = True
-        #     reward += 10
-        # for obs in range(self.obstacle_num):
-        #     if np.linalg.norm(self._agent_location - self._obstacle_location[obs],ord=2) <= self._obstacle_radius[obs]:
-        #         done = True
-        #         reward -= 1
-        # if any(pos < -self.size for pos in self._agent_location) or any(pos > self.size for pos in self._agent_location):
-        #     done = True
-        #     reward -= 1
-        
-        # reward = reward - 0.01*np.linalg.norm(self._agent_location - self._target_location,ord=1) - 0.1
-        
-        # #print('acceleration =',acc,'\n',' velocity = ',self._agent_velocity,'\n',' position = ',self._agent_location,'\n','terminated = ',terminated,'\n','done = ',done,'\n')
         global MAX_TIME
         global scale
         global Eptime
         global reward
+        global total_reward
         done = False
         trajectory = utils.trajectory(self._agent_location,self._agent_angle,self._agent_velocity,action[0],action[1],self.dt)
         self._agent_location,self._agent_angle,self._agent_velocity = trajectory.traj_generate()
@@ -195,12 +157,12 @@ class Env(gym.Env):
         for obs in self.obstacle_list:
             if obs.shape == 'circle':
                 if np.linalg.norm(self._agent_location-[obs.x,obs.y],ord=2) < obs.radius:
-                    reward -= 0.1
+                    reward -= 5
                     done = True
                     print('collision')
             if obs.shape == 'rectangle':
                 if obs.collision(self._agent_location):
-                    reward -= 0.1
+                    reward -= 5
                     done = True
                     print('collision')
 
@@ -208,52 +170,25 @@ class Env(gym.Env):
             reward -= 5
             done = True
         
+        reward = reward + np.exp(-2*np.linalg.norm(self._agent_location - self._target_location,ord=2))
         reward = reward - 0.01 
         self._target_location = self._target_location
         self._target_velocity = self._target_velocity
         observation = self._get_obs()
         info = self._get_info()
+        # print(info["episodic_return"])
         if self.render_mode == "human":
             self._render_frame()
 
+        self.done = done
+        total_reward += reward
+        
+        self.ep_length += self.dt
         return observation, reward, done,False, info
     
     def render(self):
         if self.render_mode == "rgb_array":
             return self._render_frame()
-        
-    # def _render_frame(self):
-    #     if self.window is None and self.render_mode == "human":
-    #         pygame.init()
-    #         pygame.display.init()
-    #         self.window = pygame.display.set_mode((self.window_size, self.window_size))
-    #         self.clock = pygame.time.Clock()
-        
-    #     canvas = pygame.Surface((self.window_size, self.window_size))
-    #     canvas.fill((0, 0, 0))
-    #     pygame.draw.circle(
-    #         canvas,[255,0,0],[self._agent_location[0]+50,self._agent_location[1]+50],2
-    #     )# agent
-
-    #     pygame.draw.circle(
-    #         canvas,[0,255,0],[self._target_location[0]+50,self._target_location[1]+50],5
-    #     )
-    #     for n in range(self.obstacle_num):
-    #         pygame.draw.circle(
-    #             canvas,[255,255,255],[self._obstacle_location[n][0]+50,self._obstacle_location[n][1]+50],self._obstacle_radius[n][0]
-    #         )
-    #     pygame.draw.lines(
-    #         canvas,[4,217,255],False,self.path,1
-    #     )
-    #     if self.render_mode == "human":
-    #         self.window.blit(canvas, (0, 0))
-    #         pygame.event.pump()
-    #         pygame.display.update()
-    #         self.clock.tick(4)
-    #     else:  # rgb_array
-    #         return np.transpose(
-    #             np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
-    #         )
 
     def _render_frame(self):
             if self.window is None and self.render_mode == "human":
@@ -316,14 +251,15 @@ class Env(gym.Env):
             pygame.quit() 
 
 
-# if __name__ == '__main__':
-#     env = Env(render_mode="human")
-#     obs,_ = env.reset()
-#     #print(env.action_dim()) 
-#     done = False
-#     while not done:
-#         action = np.array([1,0])
-#         observation,reward,done,_,_ = env.step(action)
-#         env.render()
-#         print(done,'\n','pos =',env._agent_location,'\n','vel = ',env._agent_velocity,math.degrees(env._agent_angle),'\n','Target = ',env._target_location,'\n','Tar_Vel = ',env._target_velocity)
-#     env.close()
+if __name__ == '__main__':
+    env = Env(render_mode="human")
+    obs,_ = env.reset()
+    print(obs)
+    #print(env.action_dim()) 
+    done = False
+    while not done:
+        action = np.random.randn(2)
+        observation,reward,done,_,_ = env.step(action)
+        env.render()
+        print(done,'\n','pos =',env._agent_location,'\n','vel = ',env._agent_velocity,math.degrees(env._agent_angle),'\n','Target = ',env._target_location,'\n','Tar_Vel = ',env._target_velocity)
+    env.close()

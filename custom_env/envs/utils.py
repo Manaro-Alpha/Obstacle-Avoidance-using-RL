@@ -45,8 +45,8 @@ class polar_occupancy_grid():
         self.y = y #y position of agent
         self.R = R #max R upto which agent can see
         self.Theta = Theta #in degrees # FOV of agent
-        self.dr = 0.01
-        self.dtheta = 0.1
+        self.dr = 1
+        self.dtheta = 0.5
         self.points = np.empty((int(self.R/self.dr),int(self.Theta/self.dtheta)),dtype=point)
         for r in range(int(self.R/self.dr)):
             for theta in range(int(self.Theta/self.dtheta)):

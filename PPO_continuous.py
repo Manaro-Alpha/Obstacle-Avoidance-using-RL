@@ -1,8 +1,8 @@
 import os
+import gym
 import random
 import time
 from distutils.util import strtobool
-import gym
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from custom_env.envs import ObsAv_Env
 start_time = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class ActorCritic(nn.Module):
     def __init__(self,obs_dim,action_dim,action_std):
@@ -64,7 +65,7 @@ def rollout(envs,obs_buffer,values_buffer,action_buffer,rewards_buffer,dones_buf
     for i in range(len(infos['final_info'])):
         if infos["final_info"][i] == 0:
             continue
-        print(f"global_step = {global_step}, episodic_return = {infos['episodic_return']}")
+        print(f"global_step = {global_step}, episodic_return = {infos['episodic_return'][i]}")
         writer.add_scalar("charts/episodic_return", infos['episodic_return'][i], global_step)
         writer.add_scalar("charts/episodic_length", infos["ep_l"][i], global_step)
 
@@ -111,7 +112,7 @@ def train(envs,agent:ActorCritic,optim,obs_buffer,values_buffer,action_buffer,re
 
             entropy_loss = entropy.mean()
             loss = -pg_loss - 0.01*entropy_loss + 0.5*v_loss
-            print(loss)
+            
 
             optim.zero_grad()
             loss.backward()
@@ -127,6 +128,9 @@ def train(envs,agent:ActorCritic,optim,obs_buffer,values_buffer,action_buffer,re
     writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
     writer.add_scalar("losses/explained_variance", explained_var, global_step)
     print("SPS:", int(global_step / (time.time() - start_time)))
+    # if num_steps%500 == 0:
+    print("####################","\n")
+    print(f"loss: {loss}","\n",f"pg_loss: {pg_loss}",'\n',f"value_loss: {v_loss}",'\n',"####################")
     writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
 def save(agent:ActorCritic,path):
@@ -194,12 +198,12 @@ def PPO(env_id,num_envs,num_steps,learning_rate,gamma,total_timesteps,batch_size
 if __name__ == "__main__":
     env_id = "custom_env/ExpWorld-v1"
     PPO(env_id = env_id,
-        num_envs = 5,
+        num_envs = 1,
         num_steps = 2000,
         learning_rate=3e-4,
         gamma=0.99,
-        total_timesteps=int(1e5),
-        batch_size = 10000,
+        total_timesteps=1000000,
+        batch_size = 2000,
         num_epochs=10,
         mbatch_size=250,
         clip_coef=0.2,

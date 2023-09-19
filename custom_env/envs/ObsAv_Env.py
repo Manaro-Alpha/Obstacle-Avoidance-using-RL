@@ -23,7 +23,7 @@ class Env(gym.Env):
         self.dt = 0.1
         self.path = []
         self.done = False
-        # self.total_reward = 10
+        self.total_reward = 0
         self.ep_length = 0
         polar_grid = utils.polar_occupancy_grid(0,0,10,15)
         self.observation_space = spaces.Dict(
@@ -58,7 +58,7 @@ class Env(gym.Env):
         return {
             "distance": np.linalg.norm(self._agent_location - self._target_location, ord=1),
             "final_info": self.done,
-            "episodic_return": total_reward,
+            "episodic_return": self.total_reward,
             "ep_l": self.ep_length
         }
     
@@ -66,15 +66,17 @@ class Env(gym.Env):
         super().reset(seed=seed)
         global Eptime
         global total_reward
+        self.ep_length = time.time() - Eptime
         Eptime = time.time()
         global reward
         reward = 0
+        self.total_reward = total_reward
         total_reward = 0
         self.done = False
-        self.ep_length = 0
         self.path = []
         self._agent_location = self.np_random.uniform(-self.size,self.size,2)
         self.path.append(self._agent_location+384)
+        self.path.append(self._agent_location+384+0.001)
         self._agent_velocity = self.np_random.uniform(-3,3,1)
         self._agent_angle = self.np_random.uniform(-3.14,3.14,1)
         self._target_location = self._agent_location
@@ -150,28 +152,27 @@ class Env(gym.Env):
         ## episode ends
 
         if np.linalg.norm(self._agent_location - self._target_location,2) < 0.2:
-            reward += 20 - scale*1e-4*np.linalg.norm(np.array([self._agent_velocity*math.cos(self._agent_angle),self._agent_velocity*math.sin(self._agent_angle)]) - np.array([self._target_velocity*math.cos(self._agent_angle),self._target_velocity*math.sin(self._agent_angle)]))
+            reward += 50
             done = True
-            scale += 1
+            print("################reached###############")
 
         for obs in self.obstacle_list:
             if obs.shape == 'circle':
                 if np.linalg.norm(self._agent_location-[obs.x,obs.y],ord=2) < obs.radius:
-                    reward -= 5
+                    reward -= 10
                     done = True
                     print('collision')
             if obs.shape == 'rectangle':
                 if obs.collision(self._agent_location):
-                    reward -= 5
+                    reward -= 10
                     done = True
                     print('collision')
 
         if time.time() - Eptime > MAX_TIME:
-            reward -= 5
             done = True
         
-        reward = reward + np.exp(-2*np.linalg.norm(self._agent_location - self._target_location,ord=2))
-        reward = reward - 0.01 
+        reward = reward + 10*np.exp(-2*np.linalg.norm(self._agent_location - self._target_location,ord=2))
+        reward = reward - 0.0001
         self._target_location = self._target_location
         self._target_velocity = self._target_velocity
         observation = self._get_obs()
@@ -251,15 +252,15 @@ class Env(gym.Env):
             pygame.quit() 
 
 
-if __name__ == '__main__':
-    env = Env(render_mode="human")
-    obs,_ = env.reset()
-    print(obs)
-    #print(env.action_dim()) 
-    done = False
-    while not done:
-        action = np.random.randn(2)
-        observation,reward,done,_,_ = env.step(action)
-        env.render()
-        print(done,'\n','pos =',env._agent_location,'\n','vel = ',env._agent_velocity,math.degrees(env._agent_angle),'\n','Target = ',env._target_location,'\n','Tar_Vel = ',env._target_velocity)
-    env.close()
+# if __name__ == '__main__':
+#     env = Env(render_mode="human")
+#     obs,_ = env.reset()
+#     print(obs)
+#     #print(env.action_dim()) 
+#     done = False
+#     while not done:
+#         action = np.random.randn(2)
+#         observation,reward,done,_,_ = env.step(action)
+#         env.render()
+#         print(done,'\n','pos =',env._agent_location,'\n','vel = ',env._agent_velocity,math.degrees(env._agent_angle),'\n','Target = ',env._target_location,'\n','Tar_Vel = ',env._target_velocity)
+#     env.close()

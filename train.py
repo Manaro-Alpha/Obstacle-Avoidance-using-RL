@@ -21,13 +21,13 @@ def make_env(env_id,idx,run_name,gamma):
 
 def train(total_timesteps):
     gamma = 0.999
-    env_id = "ExpWorld-v1"
+    env_id = "custom_env/ExpWorld-v1"
     run_name = f"{env_id}__{int(time.time())}"
     envs = gym.vector.SyncVectorEnv([make_env(env_id,i,run_name,gamma) for i in range(1)])
     model = PPO(envs)
     model.env_id = env_id
     model.learn(total_timesteps)
-    path = 'PPO_' + env_id + "_model_" + str(int(time.time()))
+    path = 'PPO_' + "_model_" + str(int(time.time()))
     model.save(path)
 
 if __name__ == '__main__':

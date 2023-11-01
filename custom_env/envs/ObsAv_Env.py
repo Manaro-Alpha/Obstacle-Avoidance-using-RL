@@ -86,7 +86,7 @@ class Env(gym.Env):
         self._target_angle = self.np_random.uniform(-3.14,3.14,1)
         self.polar_occupancy_grid = utils.polar_occupancy_grid(self._agent_location[0],self._agent_location[1],10,15)
         self._occupancy_grid = np.zeros(np.prod(self.polar_occupancy_grid.shape()),dtype=bool)
-        self.obstacle_num = np.random.randint(0,20)
+        self.obstacle_num = np.random.randint(0,15)
         self.obstacle_list = []
         for i in range(self.obstacle_num):
             n = random.randint(0,1)
@@ -160,13 +160,13 @@ class Env(gym.Env):
             if obs.shape == 'circle':
                 if np.linalg.norm(self._agent_location-[obs.x,obs.y],ord=2) < obs.radius:
                     reward -= 10
-                    done = True
-                    print('collision')
+                    # done = True
+                    # print('collision')
             if obs.shape == 'rectangle':
                 if obs.collision(self._agent_location):
                     reward -= 10
-                    done = True
-                    print('collision')
+                    # done = True
+                    # print('collision')
 
         if time.time() - Eptime > MAX_TIME:
             done = True
